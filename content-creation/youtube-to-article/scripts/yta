@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""
+YouTube to Article - Main Orchestrator
+Orchestrates yta-get and yta-format to produce final article with optional AI generation
+"""
+
+import sys
+import subprocess
+import json
+import os
+import argparse
+import shutil
+from pathlib import Path
+
+# Add lib directory to path
+sys.path.insert(0, str(Path(__file__).parent / 'lib'))
+from article_generator import create_generator
+
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description='Convert YouTube video to article',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  yta "https://youtube.com/watch?v=VIDEO_ID"
+  yta "URL" --no-article
+  yta "URL" --output-dir ~/Documents/
+        """
+    )
+
+    parser.add_argument(
+        'url',
+        help='YouTube video URL'
+    )
+
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default=None,
+        help='Output directory for generated files (default: ~/context/00Inbox/)'
+    )
+
+    parser.add_argument(
+        '--generate-article',
+        action='store_true',
+        default=True,
+        dest='generate_article',
+        help='Generate AI article from structured content (default: enabled)'
+    )
+
+    parser.add_argument(
+        '--no-article',
+        action='store_false',
+        dest='generate_article',
+        help='Skip article generation (only extract transcript)'
+    )
+
+    return parser.parse_args()
+
+
+def main():
+    """
+    Main pipeline:
+        1. yta-get <url> → JSON (respects DOWNLOAD_DIR env var)
+        2. yta-format (JSON stdin) → Markdown
+        3. (Optional) Generate AI article
+    """
+    args = parse_arguments()
+
+    # Set up environment
+    env = os.environ.copy()
+    if args.output_dir:
+        env['DOWNLOAD_DIR'] = args.output_dir
+
+    script_dir = Path(__file__).parent
+
+    # Determine total steps
+    total_steps = 3 if args.generate_article else 2
+
+    # Step 1: Extract YouTube data
+    print(f"[1/{total_steps}] Extracting YouTube data...", file=sys.stderr)
+    yta_get = script_dir / "yta-get"
+    result_get = subprocess.run(
+        [str(yta_get), args.url],
+        capture_output=True,
+        text=True,
+        env=env
+    )
+
+    if result_get.returncode != 0:
+        print(f"Error in yta-get: {result_get.stderr}", file=sys.stderr)
+        sys.exit(1)
+
+    # Step 2: Format to markdown
+    print(f"[2/{total_steps}] Generating structured content...", file=sys.stderr)
+    yta_format = script_dir / "yta-format"
+    result_format = subprocess.run(
+        [str(yta_format)],
+        input=result_get.stdout,
+        capture_output=True,
+        text=True,
+        env=env
+    )
+
+    if result_format.returncode != 0:
+        print(f"Error in yta-format: {result_format.stderr}", file=sys.stderr)
+        sys.exit(1)
+
+    # Get output data
+    data = json.loads(result_format.stdout)
+    output_dir = Path(data['output_directory'])
+    markdown_path = output_dir / 'structured_content.md'
+
+    print(f"✅ Structured content saved to: {markdown_path}", file=sys.stderr)
+
+    # Step 3 (Optional): Generate AI article
+    if args.generate_article:
+        print(f"[3/{total_steps}] Generating AI article...", file=sys.stderr)
+
+        try:
+            # Read structured content
+            with open(markdown_path, 'r', encoding='utf-8') as f:
+                structured_content = f.read()
+
+            # Create article generator
+            generator = create_generator()
+
+            # Prepare metadata
+            metadata = data.get('metadata', {})
+
+            # Generate and save article (返回实际的文件路径，带中文文件名)
+            article_path = output_dir / 'ai_article.md'  # 占位路径
+            actual_article_path = generator.generate_and_save(
+                metadata=metadata,
+                structured_content=structured_content,
+                output_path=article_path,
+                use_cli_first=True
+            )
+
+            # Step 4: 使用中文标题重命名文件夹
+            print("Renaming directory to Chinese title...", file=sys.stderr)
+            chinese_title = actual_article_path.stem  # 文件名（不含.md扩展名）
+            new_output_dir = output_dir.parent / chinese_title
+
+            # 重命名文件夹（如果新名称不同）
+            if new_output_dir != output_dir:
+                shutil.move(str(output_dir), str(new_output_dir))
+                print(f"✅ Directory renamed: {output_dir.name} → {new_output_dir.name}", file=sys.stderr)
+
+                # 更新路径引用
+                output_dir = new_output_dir
+                actual_article_path = new_output_dir / actual_article_path.name
+
+            print(f"✅ AI article saved to: {actual_article_path}", file=sys.stderr)
+            print(str(actual_article_path))  # stdout输出文章路径
+
+        except Exception as e:
+            print(f"⚠️  Article generation failed: {e}", file=sys.stderr)
+            print("Structured content is still available at:", file=sys.stderr)
+            print(str(markdown_path), file=sys.stderr)
+            # 不退出，因为结构化内容已成功生成
+    else:
+        print(str(markdown_path))  # stdout输出结构化内容路径
+
+
+if __name__ == "__main__":
+    main()

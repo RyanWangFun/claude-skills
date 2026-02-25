@@ -1,0 +1,337 @@
+#!/bin/bash
+
+# notes-cli - macOS Notes.app 命令行工具
+# 用法: notes-cli <command> [arguments]
+
+# Base directory relative to this script
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPTS_DIR="$BASE_DIR/scripts/core"
+
+# Help message
+function show_help {
+    echo "Usage: notes-cli <command> [arguments]"
+    echo ""
+    echo "Read Commands:"
+    echo "  folders                     List all folders"
+    echo "  list <folder>               List notes in a folder"
+    echo "  get <folder> <note_name>    Get note content"
+    echo "  get-id <note_id>            Get note content by ID"
+    echo ""
+    echo "Write Commands:"
+    echo "  create <folder> <title> [body]    Create a new note"
+    echo "  update <folder> <note> <body>     Update note content"
+    echo "  update-id <note_id> <body>        Update note by ID"
+    echo "  delete <folder> <note_name>       Delete a note"
+    echo "  delete-id <note_id>               Delete note by ID"
+    echo ""
+    echo "Options:"
+    echo "  --json                      Output raw JSON"
+    echo "  --markdown                  Output Markdown (default)"
+    echo "  --help                      Show this help"
+}
+
+# Check output format
+OUTPUT_FORMAT="markdown"
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--json" ]]; then
+        OUTPUT_FORMAT="json"
+    elif [[ "$arg" == "--markdown" ]]; then
+        OUTPUT_FORMAT="markdown"
+    elif [[ "$arg" == "--help" ]]; then
+        show_help
+        exit 0
+    else
+        ARGS+=("$arg")
+    fi
+done
+
+# Set positional args
+set -- "${ARGS[@]}"
+
+COMMAND=$1
+
+if [ -z "$COMMAND" ]; then
+    show_help
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: folders
+# -----------------------------------------------------------------------------
+if [ "$COMMAND" == "folders" ]; then
+    RESULT=$(osascript "$SCRIPTS_DIR/list_folders.applescript")
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "$RESULT"
+    else
+        echo "$RESULT" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+print('# Notes Folders\n')
+for item in data:
+    print(f'- **{item[\"name\"]}** ({item[\"count\"]} notes)')
+"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: list
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "list" ]; then
+    FOLDER_NAME="$2"
+    if [ -z "$FOLDER_NAME" ]; then
+        echo "Error: Folder name required."
+        echo "Usage: notes-cli list <folder>"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/list_notes.applescript" "$FOLDER_NAME")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "$RESULT"
+    else
+        echo "$RESULT" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+folder = sys.argv[1]
+print(f'# Notes in {folder}\n')
+if not data:
+    print('*(No notes)*')
+else:
+    for note in data:
+        print(f'- **{note[\"name\"]}**')
+        print(f'  - Modified: {note[\"modified\"]}')
+" "$FOLDER_NAME"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: get
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "get" ]; then
+    FOLDER_NAME="$2"
+    NOTE_NAME="$3"
+
+    if [ -z "$FOLDER_NAME" ] || [ -z "$NOTE_NAME" ]; then
+        echo "Error: Folder name and note name required."
+        echo "Usage: notes-cli get <folder> <note_name>"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/get_note.applescript" "$FOLDER_NAME" "$NOTE_NAME")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "$RESULT"
+    else
+        echo "$RESULT" | python3 -c "
+import sys, json, re
+data = json.load(sys.stdin)
+print(f'# {data[\"name\"]}\n')
+print(f'**Modified:** {data[\"modified\"]}')
+print(f'**ID:** {data[\"id\"]}\n')
+print('---\n')
+# Convert HTML to plain text (simple)
+body = data['body']
+# Remove HTML tags
+body = re.sub(r'<h1[^>]*>', '# ', body)
+body = re.sub(r'</h1>', '', body)
+body = re.sub(r'<div[^>]*>', '', body)
+body = re.sub(r'</div>', '\n', body)
+body = re.sub(r'<br[^>]*>', '\n', body)
+body = re.sub(r'<[^>]+>', '', body)
+body = body.strip()
+print(body)
+"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: get-id
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "get-id" ]; then
+    NOTE_ID="$2"
+
+    if [ -z "$NOTE_ID" ]; then
+        echo "Error: Note ID required."
+        echo "Usage: notes-cli get-id <note_id>"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/get_note.applescript" "$NOTE_ID")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "$RESULT"
+    else
+        echo "$RESULT" | python3 -c "
+import sys, json, re
+data = json.load(sys.stdin)
+print(f'# {data[\"name\"]}\n')
+print(f'**Modified:** {data[\"modified\"]}')
+print(f'**ID:** {data[\"id\"]}\n')
+print('---\n')
+body = data['body']
+body = re.sub(r'<h1[^>]*>', '# ', body)
+body = re.sub(r'</h1>', '', body)
+body = re.sub(r'<div[^>]*>', '', body)
+body = re.sub(r'</div>', '\n', body)
+body = re.sub(r'<br[^>]*>', '\n', body)
+body = re.sub(r'<[^>]+>', '', body)
+body = body.strip()
+print(body)
+"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: create
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "create" ]; then
+    FOLDER_NAME="$2"
+    TITLE="$3"
+    BODY="${4:-}"
+
+    if [ -z "$FOLDER_NAME" ] || [ -z "$TITLE" ]; then
+        echo "Error: Folder name and title required."
+        echo "Usage: notes-cli create <folder> <title> [body]"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/create_note.applescript" "$FOLDER_NAME" "$TITLE" "$BODY")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "{\"id\": \"$RESULT\", \"status\": \"created\"}"
+    else
+        echo "✅ Note created: **$TITLE**"
+        echo "   Folder: $FOLDER_NAME"
+        echo "   ID: $RESULT"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: update
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "update" ]; then
+    FOLDER_NAME="$2"
+    NOTE_NAME="$3"
+    BODY="$4"
+
+    if [ -z "$FOLDER_NAME" ] || [ -z "$NOTE_NAME" ] || [ -z "$BODY" ]; then
+        echo "Error: Folder name, note name, and body required."
+        echo "Usage: notes-cli update <folder> <note_name> <body>"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/update_note.applescript" "$FOLDER_NAME" "$NOTE_NAME" "$BODY")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "{\"id\": \"$RESULT\", \"status\": \"updated\"}"
+    else
+        echo "✅ Note updated: **$NOTE_NAME**"
+        echo "   ID: $RESULT"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: update-id
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "update-id" ]; then
+    NOTE_ID="$2"
+    BODY="$3"
+
+    if [ -z "$NOTE_ID" ] || [ -z "$BODY" ]; then
+        echo "Error: Note ID and body required."
+        echo "Usage: notes-cli update-id <note_id> <body>"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/update_note.applescript" "$NOTE_ID" "$BODY")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "{\"id\": \"$RESULT\", \"status\": \"updated\"}"
+    else
+        echo "✅ Note updated"
+        echo "   ID: $RESULT"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: delete
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "delete" ]; then
+    FOLDER_NAME="$2"
+    NOTE_NAME="$3"
+
+    if [ -z "$FOLDER_NAME" ] || [ -z "$NOTE_NAME" ]; then
+        echo "Error: Folder name and note name required."
+        echo "Usage: notes-cli delete <folder> <note_name>"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/delete_note.applescript" "$FOLDER_NAME" "$NOTE_NAME")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "{\"status\": \"deleted\"}"
+    else
+        echo "🗑️ Note deleted: **$NOTE_NAME**"
+    fi
+
+# -----------------------------------------------------------------------------
+# COMMAND: delete-id
+# -----------------------------------------------------------------------------
+elif [ "$COMMAND" == "delete-id" ]; then
+    NOTE_ID="$2"
+
+    if [ -z "$NOTE_ID" ]; then
+        echo "Error: Note ID required."
+        echo "Usage: notes-cli delete-id <note_id>"
+        exit 1
+    fi
+
+    RESULT=$(osascript "$SCRIPTS_DIR/delete_note.applescript" "$NOTE_ID")
+
+    if [[ "$RESULT" == ERROR* ]]; then
+        echo "$RESULT"
+        exit 1
+    fi
+
+    if [ "$OUTPUT_FORMAT" == "json" ]; then
+        echo "{\"status\": \"deleted\"}"
+    else
+        echo "🗑️ Note deleted"
+        echo "   ID: $NOTE_ID"
+    fi
+
+else
+    echo "Unknown command: $COMMAND"
+    show_help
+    exit 1
+fi

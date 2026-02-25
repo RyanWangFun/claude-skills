@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""
+YTA-UNIX: yta-get tool
+Extracts all data from a YouTube video and outputs as JSON.
+"""
+
+import sys
+import json
+from pathlib import Path
+
+# Add lib directory to Python path
+sys.path.insert(0, str(Path(__file__).parent / 'lib'))
+
+from extractor import VideoDataExtractor
+from exceptions import YouTubeExtractorError
+
+def main():
+    """Main entry point for the yta-get tool"""
+    if len(sys.argv) != 2:
+        print("Usage: yta-get <youtube_url>", file=sys.stderr)
+        sys.exit(1)
+    
+    youtube_url = sys.argv[1]
+    
+    try:
+        extractor = VideoDataExtractor()
+        result = extractor.extract_all_data(youtube_url)
+        
+        # Output result as JSON to stdout
+        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+        
+    except YouTubeExtractorError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
