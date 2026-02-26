@@ -63,7 +63,7 @@ If `document.md` already exists, the script automatically appends a timestamp:
 
 **Engine:** marker-pdf (high-quality PDF conversion library)
 
-**Dependencies:** Uses the virtual environment from `/path/to/context/04Archives/pdf2markdown/venv/`
+**Dependencies:** Uses the virtual environment from `$CONTEXT_PATH/04Archives/pdf2markdown/venv/`
 
 **Output location:** Same directory as source PDF
 

@@ -31,7 +31,7 @@ Located in `scripts/` relative to this SKILL.md. Run with `osascript`:
 
 ```bash
 # Get skill directory
-SKILL_DIR="/path/to/skills/apple-notes"
+SKILL_DIR="$SKILLS_DIR/apple-notes"
 
 # List all folders
 osascript "$SKILL_DIR/scripts/list_folders.applescript"

@@ -1,4 +1,4 @@
-#!/path/to/context/04Archives/pdf2markdown/venv/bin/python3
+#!/usr/bin/env python3
 """
 PDF to Markdown Converter CLI
 Converts PDF files to Markdown format and saves output to the source directory.

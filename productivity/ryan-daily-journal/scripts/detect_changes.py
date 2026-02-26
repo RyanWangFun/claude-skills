@@ -8,16 +8,16 @@
 
 用法:
     # 基础模式：仅检测文件修改（最近24小时）
-    python3 detect_changes.py --hours 24 --context-path /path/to/context
+    python3 detect_changes.py --hours 24 --context-path $CONTEXT_PATH
 
     # Git增强模式：检测文件修改 + Git commits详情（推荐用于日记生成）
-    python3 detect_changes.py --use-git --date 2025-12-16 --context-path /path/to/context
+    python3 detect_changes.py --use-git --date 2025-12-16 --context-path $CONTEXT_PATH
 
     # 检测指定日期（当天 00:00 到 23:59）
-    python3 detect_changes.py --date 2024-12-03 --context-path /path/to/context
+    python3 detect_changes.py --date 2024-12-03 --context-path $CONTEXT_PATH
 
     # 检测日期范围
-    python3 detect_changes.py --start-date 2024-12-01 --end-date 2024-12-03 --context-path /path/to/context
+    python3 detect_changes.py --start-date 2024-12-01 --end-date 2024-12-03 --context-path $CONTEXT_PATH
 
 Git增强模式的优势：
 - 不仅知道"哪些文件被修改"，还能看到"具体改了什么"
@@ -380,7 +380,7 @@ def main():
     parser.add_argument(
         '--context-path',
         type=str,
-        default='/path/to/context',
+        default='$CONTEXT_PATH',
         help='Context 目录的路径'
     )
     parser.add_argument(

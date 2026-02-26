@@ -17,7 +17,7 @@ description: |
 
 - **笔记名称**: `🧊 冰箱库存`
 - **所在文件夹**: `Notes`
-- **Apple Notes 脚本目录**: `/path/to/skills/apple-notes/scripts/`
+- **Apple Notes 脚本目录**: `$SKILLS_DIR/apple-notes/scripts/`
 
 ## 笔记结构
 
@@ -48,7 +48,7 @@ description: |
 
 ### Step 1: 读取当前笔记
 ```bash
-SKILL_DIR="/path/to/skills/apple-notes"
+SKILL_DIR="$SKILLS_DIR/apple-notes"
 osascript "$SKILL_DIR/scripts/get_note.applescript" "Notes" "冰箱库存"
 ```
 

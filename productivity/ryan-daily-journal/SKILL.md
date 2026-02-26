@@ -26,7 +26,7 @@ The detection script supports three modes for specifying time ranges:
 For generating today's journal or recent activity:
 
 ```bash
-python3 scripts/detect_changes.py --hours 24 --context-path /path/to/context
+python3 scripts/detect_changes.py --hours 24 --context-path $CONTEXT_PATH
 ```
 
 ### Mode 2: Specific Date
@@ -34,7 +34,7 @@ python3 scripts/detect_changes.py --hours 24 --context-path /path/to/context
 For generating journal for a specific date:
 
 ```bash
-python3 scripts/detect_changes.py --date 2024-12-03 --context-path /path/to/context
+python3 scripts/detect_changes.py --date 2024-12-03 --context-path $CONTEXT_PATH
 ```
 
 This will find all files modified on that entire day (00:00 to 23:59).
@@ -44,7 +44,7 @@ This will find all files modified on that entire day (00:00 to 23:59).
 For generating weekly summaries or multi-day journals:
 
 ```bash
-python3 scripts/detect_changes.py --start-date 2024-12-01 --end-date 2024-12-03 --context-path /path/to/context
+python3 scripts/detect_changes.py --start-date 2024-12-01 --end-date 2024-12-03 --context-path $CONTEXT_PATH
 ```
 
 ### Mode 4: Git Enhanced Mode (Recommended for Journal Generation)
@@ -52,7 +52,7 @@ python3 scripts/detect_changes.py --start-date 2024-12-01 --end-date 2024-12-03 
 **UPDATED**: Enhanced hybrid detection strategy that combines the best of both approaches:
 
 ```bash
-python3 scripts/detect_changes.py --use-git --date 2025-12-16 --context-path /path/to/context
+python3 scripts/detect_changes.py --use-git --date 2025-12-16 --context-path $CONTEXT_PATH
 ```
 
 **How Git Enhanced Mode Works**:
@@ -80,7 +80,7 @@ python3 scripts/detect_changes.py --use-git --date 2025-12-16 --context-path /pa
 
 ### Common Parameters
 
-- `--context-path PATH`: Path to the Context directory (default: `/path/to/context`)
+- `--context-path PATH`: Path to the Context directory (default: `$CONTEXT_PATH`)
 - `--projects-only`: Only scan 01Projects
 - `--areas-only`: Only scan 02Areas
 - `--use-git`: Enable Git diff mode for precise change detection
@@ -169,7 +169,7 @@ Commit: "完成skill系统架构设计"
 
 ### Template Structure
 
-The journal template is located at `/path/to/context/04Archives/template/日记模板 v4.md`
+The journal template is located at `$CONTEXT_PATH/04Archives/template/日记模板 v4.md`
 
 **Key sections to populate:**
 
@@ -293,7 +293,7 @@ Git commits: 无
 
 **Reference Format**:
 - Use double square brackets: `[[path/to/file.md]]`
-- All paths are relative to `/path/to/context/` root directory
+- All paths are relative to `$CONTEXT_PATH/` root directory
 - Examples:
   - `[[01Projects/个人助手开发/CLAUDE.md]]`
   - `[[02Areas/AI工具使用/认知地图.md]]`
@@ -336,7 +336,7 @@ Git commits: 无
 - Maintain readability - don't let references overwhelm the narrative
 
 **Path Construction Examples**:
-Assuming journal is saved in `02Areas/日记/`, references are still relative to `/path/to/context/`:
+Assuming journal is saved in `02Areas/日记/`, references are still relative to `$CONTEXT_PATH/`:
 - Project: `[[01Projects/项目名/文件.md]]` (NOT `../../01Projects/...`)
 - Area: `[[02Areas/领域名/文件.md]]` (NOT `../领域名/...`)
 - Archive: `[[04Archives/分类/文件.md]]`
@@ -352,7 +352,7 @@ Assuming journal is saved in `02Areas/日记/`, references are still relative to
 
 ## Step 4: Present the Journal Entry
 
-1. **Read the template** at `/path/to/context/04Archives/template/日记模板 v4.md`
+1. **Read the template** at `$CONTEXT_PATH/04Archives/template/日记模板 v4.md`
 2. **Fill in the two sections**: 项目进展 and 领域丰富
 3. **Present the complete journal** with:
    - The original template header (including value review links)
@@ -377,11 +377,11 @@ After generating the journal content, save it to the journal directory with the 
 
 ### File Location
 
-**Base directory**: `/path/to/context/02Areas/日记/`
+**Base directory**: `$CONTEXT_PATH/02Areas/日记/`
 
 **Full path examples**:
-- `/path/to/context/02Areas/日记/2024-12-04.md`
-- `/path/to/context/02Areas/日记/2024-12-03.md`
+- `$CONTEXT_PATH/02Areas/日记/2024-12-04.md`
+- `$CONTEXT_PATH/02Areas/日记/2024-12-03.md`
 
 ### Saving Workflow
 
@@ -402,7 +402,7 @@ After generating the journal content, save it to the journal directory with the 
 
 3. **Construct the full path**:
    ```python
-   full_path = f"/path/to/context/02Areas/日记/{filename}"
+   full_path = f"$CONTEXT_PATH/02Areas/日记/{filename}"
    ```
 
 4. **Write the journal content** using the Write tool:
@@ -423,11 +423,11 @@ After generating the journal content, save it to the journal directory with the 
 
 **Step-by-step execution**:
 
-1. Run detection script: `python3 scripts/detect_changes.py --hours 24 --context-path /path/to/context`
+1. Run detection script: `python3 scripts/detect_changes.py --hours 24 --context-path $CONTEXT_PATH`
 2. Read and analyze detected files
-3. Read template from `/path/to/context/04Archives/template/日记模板 v4.md`
+3. Read template from `$CONTEXT_PATH/04Archives/template/日记模板 v4.md`
 4. Generate journal content
-5. Save to `/path/to/context/02Areas/日记/2024-12-04.md`
+5. Save to `$CONTEXT_PATH/02Areas/日记/2024-12-04.md`
 
 **Generated journal content**:
 
@@ -499,7 +499,7 @@ Git commits:
 
 ```
 
-**Confirmation message**: "✅ 日记已保存到 `/path/to/context/02Areas/日记/2024-12-04.md`"
+**Confirmation message**: "✅ 日记已保存到 `$CONTEXT_PATH/02Areas/日记/2024-12-04.md`"
 
 ## Best Practices
 
@@ -534,7 +534,7 @@ Git commits:
 - Focus on files with substantial changes (ignore minor edits)
 
 **Missing template:**
-- Verify template exists at `/path/to/context/04Archives/template/日记模板 v4.md`
+- Verify template exists at `$CONTEXT_PATH/04Archives/template/日记模板 v4.md`
 - If missing, ask user for template location
 
 **File already exists:**
